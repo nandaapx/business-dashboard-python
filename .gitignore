@@ -1,0 +1,30 @@
+# .gitignore — Python + Business Dashboard
+
+# Bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Entornos virtuales
+venv/
+env/
+.venv/
+ENV/
+
+# Datos exportados (sensibles)
+export_data.json
+*.db
+*.sqlite
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

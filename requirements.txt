@@ -1,0 +1,9 @@
+# requirements.txt
+# Este proyecto usa solo la librería estándar de Python 3.8+
+# No requiere instalación de paquetes externos.
+
+# Opcional: para futuras expansiones puedes agregar:
+# rich>=13.0          # Para consola con colores avanzados
+# typer>=0.9          # Para CLIs profesionales
+# pandas>=2.0         # Para reportes con datos tabulares
+# openpyxl>=3.1       # Para exportar a Excel
