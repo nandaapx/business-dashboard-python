@@ -158,6 +158,7 @@ git diff
 
 # Ver historial visual de ramas
 git log --oneline --graph --all
+git log --oneline --graph
 ```
 
 ---
