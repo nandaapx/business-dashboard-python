@@ -1,94 +1,151 @@
 """
-Módulo de Reportes y Estadísticas
+modules/reports.py — Reportes y Estadísticas
 """
 
-from utils.helpers import clear_screen
+from utils.helpers import (
+    clear_screen, titulo, subtitulo, separador,
+    ok, advertencia, pausa,
+    mostrar_menu, pedir_opcion_menu,
+    imprimir_tabla
+)
 
 
 class ReportGenerator:
+
     def __init__(self, task_manager, employee_manager):
         self.task_mgr = task_manager
-        self.emp_mgr = employee_manager
+        self.emp_mgr  = employee_manager
 
-    def summary(self):
-        tasks = self.task_mgr.get_all()
-        employees = self.emp_mgr.get_all()
+    # ══════════════════════════════════════════
+    #  MENÚ
+    # ══════════════════════════════════════════
 
-        total_tasks = len(tasks)
-        completed = len([t for t in tasks if t["status"] == "COMPLETADA"])
-        pending = total_tasks - completed
-        high_priority = len([t for t in tasks if t["priority"] == "ALTA" and t["status"] == "PENDIENTE"])
+    def menu(self):
+        while True:
+            clear_screen()
+            titulo("📊  REPORTES Y ESTADÍSTICAS")
 
-        active_emp = len([e for e in employees if e["active"]])
-        departments = set(e["department"] for e in employees if e["active"])
+            tasks     = self.task_mgr.get_all()
+            employees = self.emp_mgr.get_all()
 
-        print("\n  📊  RESUMEN GENERAL")
-        print("  " + "═" * 40)
-        print(f"\n  👥 Empleados activos    : {active_emp}")
-        print(f"  🏢 Departamentos        : {len(departments)}")
-        print(f"\n  📋 Total de tareas      : {total_tasks}")
-        print(f"  ✅ Completadas          : {completed}")
-        print(f"  ⏳ Pendientes           : {pending}")
-        print(f"  🔴 Alta prioridad pend. : {high_priority}")
+            if not employees and not tasks:
+                advertencia("No hay datos registrados aún.")
+                print("  Agrega empleados y tareas primero.\n")
+                mostrar_menu(["Volver al menú principal"])
+                pedir_opcion_menu(0)
+                break
 
-        if total_tasks > 0:
-            rate = (completed / total_tasks) * 100
-            bar_filled = int(rate / 5)
-            bar = "█" * bar_filled + "░" * (20 - bar_filled)
-            print(f"\n  Progreso: [{bar}] {rate:.1f}%")
+            # Mini resumen siempre visible
+            self._mini_resumen(tasks, employees)
 
-    def by_department(self):
-        employees = self.emp_mgr.get_active()
-        if not employees:
-            print("\n  ⚠️  No hay empleados activos.")
+            mostrar_menu([
+                "Resumen general completo",
+                "Empleados por departamento",
+                "Tareas por persona",
+                "Volver al menú principal",
+            ])
+
+            opt = pedir_opcion_menu(3)
+            if opt is None or opt == 0:
+                break
+            elif opt == 1:
+                self._resumen_completo(tasks, employees)
+            elif opt == 2:
+                self._por_departamento()
+            elif opt == 3:
+                self._por_persona(tasks)
+
+    # ══════════════════════════════════════════
+    #  REPORTES
+    # ══════════════════════════════════════════
+
+    def _mini_resumen(self, tasks, employees):
+        total    = len(tasks)
+        done     = sum(1 for t in tasks if t["status"] == "COMPLETADA")
+        activos  = sum(1 for e in employees if e["active"])
+        pct      = round((done / total) * 100) if total > 0 else 0
+        filled   = pct // 5
+        barra    = "█" * filled + "░" * (20 - filled)
+
+        separador("─", 48)
+        print(f"  👥 Empleados activos : {activos}   "
+              f"📋 Tareas: {total}   ✅ {done}   ⏳ {total - done}")
+        print(f"  Progreso  [{barra}] {pct}%")
+        separador("─", 48)
+
+    def _resumen_completo(self, tasks, employees):
+        clear_screen()
+        titulo("📊  RESUMEN GENERAL")
+
+        total    = len(tasks)
+        done     = sum(1 for t in tasks if t["status"] == "COMPLETADA")
+        pending  = total - done
+        high     = sum(1 for t in tasks
+                       if t["priority"] == "ALTA" and t["status"] == "PENDIENTE")
+        activos  = sum(1 for e in employees if e["active"])
+        inactivos = len(employees) - activos
+        deptos   = set(e["department"] for e in employees if e["active"])
+
+        print(f"  👥  Empleados activos     : {activos}")
+        print(f"  ❌  Empleados inactivos   : {inactivos}")
+        print(f"  🏢  Departamentos activos : {len(deptos)}")
+        separador()
+        print(f"  📋  Total de tareas       : {total}")
+        print(f"  ✅  Completadas           : {done}")
+        print(f"  ⏳  Pendientes            : {pending}")
+        print(f"  🔴  Alta prioridad pend.  : {high}")
+
+        if total > 0:
+            pct    = round((done / total) * 100)
+            filled = pct // 5
+            barra  = "█" * filled + "░" * (20 - filled)
+            print(f"\n  Progreso general:")
+            print(f"  [{barra}] {pct}%")
+
+        pausa()
+
+    def _por_departamento(self):
+        clear_screen()
+        titulo("🏢  EMPLEADOS POR DEPARTAMENTO")
+
+        activos = self.emp_mgr.get_active()
+        if not activos:
+            advertencia("No hay empleados activos registrados.")
+            pausa()
             return
 
         dept_map = {}
-        for e in employees:
-            dept_map.setdefault(e["department"], []).append(e["name"])
+        for e in activos:
+            dept_map.setdefault(e["department"], []).append(e)
 
-        print("\n  🏢  EMPLEADOS POR DEPARTAMENTO\n")
-        for dept, names in sorted(dept_map.items()):
-            print(f"  📁 {dept} ({len(names)} personas)")
-            for n in names:
-                print(f"      • {n}")
+        for dept, emps in sorted(dept_map.items()):
+            subtitulo(f"{dept}  ({len(emps)} persona(s))")
+            for e in emps:
+                print(f"  • #{e['id']}  {e['name']}  —  {e['role']}")
+            print()
 
-    def task_by_person(self):
-        tasks = self.task_mgr.get_all()
+        pausa()
+
+    def _por_persona(self, tasks):
+        clear_screen()
+        titulo("📋  TAREAS POR PERSONA")
+
         if not tasks:
-            print("\n  ⚠️  No hay tareas registradas.")
+            advertencia("No hay tareas registradas.")
+            pausa()
             return
 
         person_map = {}
         for t in tasks:
             person_map.setdefault(t["assigned_to"], []).append(t)
 
-        print("\n  📋  TAREAS POR PERSONA\n")
-        for person, ptasks in sorted(person_map.items()):
-            done = len([t for t in ptasks if t["status"] == "COMPLETADA"])
-            print(f"  👤 {person}: {len(ptasks)} tarea(s) | ✅ {done} completada(s)")
-            for t in ptasks:
-                icon = "✅" if t["status"] == "COMPLETADA" else "⏳"
-                print(f"      {icon} [{t['priority']}] {t['title']}")
+        for persona, lista in sorted(person_map.items()):
+            done = sum(1 for t in lista if t["status"] == "COMPLETADA")
+            subtitulo(f"{persona}  —  {len(lista)} tarea(s)  |  ✅ {done} completada(s)")
+            for t in lista:
+                icono  = "✅" if t["status"] == "COMPLETADA" else "⏳"
+                prio   = {"ALTA": "🔴", "MEDIA": "🟡", "BAJA": "🟢"}.get(t["priority"], "")
+                print(f"  {icono}  [{prio} {t['priority']}]  {t['title']}")
+            print()
 
-    def menu(self):
-        while True:
-            clear_screen()
-            print("\n  📊  REPORTES Y ESTADÍSTICAS\n")
-            print("  [1] Resumen general")
-            print("  [2] Empleados por departamento")
-            print("  [3] Tareas por persona")
-            print("  [0] Volver\n")
-
-            opt = input("  Opción: ").strip()
-
-            if opt == "1":
-                self.summary()
-            elif opt == "2":
-                self.by_department()
-            elif opt == "3":
-                self.task_by_person()
-            elif opt == "0":
-                break
-
-            input("\n  Presiona Enter para continuar...")
+        pausa()
